@@ -1,0 +1,73 @@
+#!/bin/bash
+#
+# Matteo Cappadonna (matteo.cappadonna@me.com) - 2016/12/15
+#
+# Constantly monitor the source files of your Swift project and recompile just when needed.
+
+! [ -f Package.swift ] && echo "Please, run $0 in a Swift project directory" && exit 1
+
+PROJECT=${PWD##*/}
+SOURCEDIR="Sources"
+BUILDOUTPUT=.$PROJECT.output
+HASHFILE=.$PROJECT.hash
+
+# Save current source files hash.
+saveHashes () {
+	cat /dev/null > $HASHFILE
+	for FILE in `find $SOURCEDIR/ -type f -name "*.swift"`
+	do
+		md5sum $FILE >> $HASHFILE
+	done
+}
+
+# Check for file differences.
+# Returns:
+#    0 - Nothing changed
+#	 1 - Something changed
+checkHashes () {
+	for FILE in `find $SOURCEDIR/ -type f -name "*.swift"`
+	do
+		CURR_HASH="`md5sum $FILE | awk '{print $1}'`"
+		PREV_HASH="`grep $FILE $HASHFILE | awk '{print $1}'`"
+
+		if [ "$CURR_HASH" == "$PREV_HASH" ]
+		then
+			continue
+		else
+			saveHashes
+			# Save the hashes and exit (no more loop required)
+			return 1
+		fi
+	done
+
+	# No differences
+	return 0
+}
+
+# Main loop
+while true
+do
+	clear
+	swift build > $BUILDOUTPUT 2>&1
+
+	# Check compilation status
+	if [ $? -eq 0 ]
+	then
+		# If build was ok, execute the app
+		.build/debug/$PROJECT $@
+	else
+		# Error, Print the build output
+		cat $BUILDOUTPUT
+	fi
+
+	# File check loop
+	while true
+	do
+		checkHashes
+		# If something change, exit (so the mail loop will recompile)
+		[ $? -ne 0 ] && break
+
+		# Sleep before another check
+		sleep 1
+	done
+done
