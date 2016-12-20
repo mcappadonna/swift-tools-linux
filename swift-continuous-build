@@ -73,7 +73,12 @@ do
 	if [ $? -eq 0 ]
 	then
 		# If build was ok; if requested, execute the app
-		[ $EXECUTE -eq 0 ] && .build/debug/$PROJECT $@
+		if [ $EXECUTE -eq 0 ]
+		then
+			.build/debug/$PROJECT $@
+		else
+			echo "Build OK"
+		fi
 	else
 		# Error, Print the build output
 		cat $BUILDOUTPUT
