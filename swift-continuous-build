@@ -4,12 +4,31 @@
 #
 # Constantly monitor the source files of your Swift project and recompile just when needed.
 
+usage () {
+	echo
+	echo "usage: $0 [-h|-scb-noexec|param1 param2 ... paramN]"
+	echo
+	echo "   -h              Show this help"
+	echo
+	echo "   -scb-noexec     Don't try to execute a binary; usefull, for example, for non-executables Swift projects"
+	echo
+	echo "   param1 param2 ... paramN     Simply pass those parameters to the result binary"
+	echo
+}
+
 ! [ -f Package.swift ] && echo "Please, run $0 in a Swift project directory" && exit 1
 
 PROJECT=${PWD##*/}
 SOURCEDIR="Sources"
 BUILDOUTPUT=.$PROJECT.output
 HASHFILE=.$PROJECT.hash
+EXECUTE=0
+
+# If requested, show the help
+[ "$1" == "-h" ] && usage && exit 0
+
+# Check if no execution was selected
+[ "$1" == "-scb-noexec" ] && EXECUTE=1
 
 # Save current source files hash.
 saveHashes () {
@@ -53,8 +72,8 @@ do
 	# Check compilation status
 	if [ $? -eq 0 ]
 	then
-		# If build was ok, execute the app
-		.build/debug/$PROJECT $@
+		# If build was ok; if requested, execute the app
+		[ $EXECUTE -eq 0 ] && .build/debug/$PROJECT $@
 	else
 		# Error, Print the build output
 		cat $BUILDOUTPUT
